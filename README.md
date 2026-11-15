@@ -85,6 +85,34 @@ Finora is a modern personal finance and expense tracking web application built w
   - Displays the user's latest expense activity with rich category icons, dates, payment method badges, notes, and amounts.
   - Includes a direct **"View All Transactions"** navigation link to the Dashboard.
 
+### 5. Dedicated Budget Planner, Fixed Commitments & Monthly Savings Tracker
+
+- **Dedicated Budget & Savings Page (`/budget`)**:
+  - Uncluttered, spacious financial hub accessible from top navigation switcher tabs (**Dashboard**, **Budget & Savings**, **Analytics**).
+  - Streamlines the main Dashboard by hosting full budget configuration, interactive checklists, and savings history in a dedicated view.
+- **Paycheck & Salary Cycle Tracking**:
+  - Configure monthly salary / budget amount.
+  - Cycle options:
+    - **Standard Calendar Month** (1st to last day of the month).
+    - **Salary Credit Day Cycle** (e.g., 25th to 24th of next month) with automated remaining days and cycle range calculations.
+- **Fixed Recurring Commitments & Dues**:
+  - **Ongoing Regular Commitments**: Tailored for non-installment recurring monthly obligations such as **House Rent**, **Kid's School Fees**, **Society Maintenance**, **Wi-Fi & Utility Bills**, and **Subscriptions** (no unnecessary installment countdowns).
+  - **Loan / EMI Installments**: Finite commitments such as **Bike EMI**, **TV EMI**, and **Personal Loans** with total & remaining installment countdowns.
+  - **Auto-Tenure Decrement & Celebratory Milestone**: Marking an installment paid decrements remaining count. Reaching 0 automatically moves the commitment to "Completed" and triggers a celebratory banner.
+  - **Quick One-Click Presets**: Fast presets for House Rent, Kid's School Fees, Bike/Car EMI, TV EMI, and Wi-Fi bills.
+- **Month-by-Month Savings Tracker & Historical Growth**:
+  - Track monthly surplus / net savings over time with dynamic year switcher (`< 2026 >`).
+  - **4 Top KPI Cards**: Total Annual Savings, Average Monthly Savings, Annual Savings Rate %, and Best Month for Savings.
+  - **12-Month Detailed Ledger**: Audits each month's Salary, Fixed Dues, Daily Variable Expenses, Total Outflow, Net Savings (+/-), Savings Rate %, and dual-color progress bars.
+  - Highlights positive savings in fresh emerald and overspent deficits in rose warning.
+- **Interactive Check-off Checklist & Sidebar Widget**:
+  - Interactive monthly checklist to check/uncheck fixed commitments as paid for the active cycle.
+  - Compact **Upcoming Fixed Dues** widget directly on the Dashboard sidebar for quick one-click settlement.
+- **Dynamic Real-Time Spendable Balance**:
+  - **Planned Spendable Budget**: `Salary - Total Fixed Commitments`.
+  - **Remaining Balance**: `Salary - Total Fixed Commitments - Daily Expenses Logged`.
+  - **Safe Daily Spend Target**: `Remaining Balance / Days Left in Cycle` showing exactly how much can safely be spent per day to stay within budget.
+
 ---
 
 ## Tech Stack
@@ -100,22 +128,24 @@ Finora is a modern personal finance and expense tracking web application built w
 Finora/
 ├── client/
 │   └── src/
+│       ├── components/analytics/  # BarChart, DonutChart, HeroHighlight, TopExpensesLeaderboard
+│       ├── components/budget/     # BudgetOverviewCard, UpcomingDuesWidget, MonthlySavingsTracker, BudgetSettingsModal
 │       ├── components/expenses/   # List, Modal, Filters, Summary, TimePeriodBar,
 │       │                          # CategoryBreakdown, DeleteConfirmModal, ReportExport
 │       ├── components/layout/     # AuthLayout
 │       ├── components/routing/    # ProtectedRoute
 │       ├── components/ui/         # Alert, FormField, PasswordStrength
 │       ├── lib/                   # api.js, expenseConstants.js, downloadFile.js
-│       ├── pages/                 # Login, Register, Dashboard
-│       ├── services/              # authService, expenseService, reportService
+│       ├── pages/                 # Login, Register, Dashboard, BudgetPage, AnalyticsPage
+│       ├── services/              # authService, expenseService, reportService, budgetService
 │       └── store/                 # authStore (Zustand)
 └── server/
     └── src/
         ├── config/                # db.js
-        ├── controllers/           # auth, expense, report
+        ├── controllers/           # auth, expense, report, budget
         ├── middleware/            # auth, csrf, error handling
-        ├── models/                # User, Expense
-        ├── routes/                # auth, expense, report
+        ├── models/                # User, Expense, BudgetPlan, FixedExpense
+        ├── routes/                # auth, expense, report, budget
         ├── utils/                 # tokens, reportData, csvReport, pdfReport
         └── server.js
 ```
@@ -185,3 +215,14 @@ VITE_API_URL=http://localhost:5000/api
 - `GET /api/reports/pdf` – Download the PDF expense report (requires login)
 - `GET /api/reports/csv` – Download the CSV expense report (requires login)
 - Both support `category`, `search`, `sortBy` (`date_desc`, `date_asc`, `amount_desc`, `amount_asc`, `title_asc`), `startDate`, `endDate`, and `periodName`.
+
+### Budget & Fixed Commitments (`/api/budget`)
+
+- `GET /api/budget/current` – Get active budget plan, dynamic cycle metrics (salary, commitments, daily spent, remaining spendable, safe daily spend), and fixed commitments
+- `POST /api/budget/settings` – Configure salary amount, cycle type (`calendar` vs `salary_day`), and salary credit day (requires CSRF token)
+- `POST /api/budget/toggle-fixed-expense` – Toggle a fixed commitment as paid/unpaid for the current cycle with auto-tenure decrement (requires CSRF token)
+- `GET /api/budget/fixed-expenses` – List all user's recurring fixed commitments (active, inactive, completed)
+- `POST /api/budget/fixed-expenses` – Create a new recurring fixed commitment (EMI, Rent, Loan, Subscription, etc.) with optional installment count (requires CSRF token)
+- `PUT /api/budget/fixed-expenses/:id` – Update recurring commitment details (requires CSRF token)
+- `DELETE /api/budget/fixed-expenses/:id` – Delete a recurring commitment (requires CSRF token)
+- `POST /api/budget/dismiss-notification` – Dismiss a milestone completion banner notification (requires CSRF token)

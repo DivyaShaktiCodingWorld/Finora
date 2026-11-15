@@ -14,10 +14,13 @@ import {
   CreditCard,
   BarChart3,
   LayoutDashboard,
+  PiggyBank,
+  Sparkles,
 } from "lucide-react";
 
 import { useAuthStore } from "../store/authStore";
 import expenseService from "../services/expenseService";
+import budgetService from "../services/budgetService";
 import { calculateDateRange } from "../lib/expenseConstants";
 
 import TimePeriodBar from "../components/expenses/TimePeriodBar";
@@ -28,6 +31,9 @@ import CategoryBreakdown from "../components/expenses/CategoryBreakdown";
 import ExpenseModal from "../components/expenses/ExpenseModal";
 import DeleteConfirmModal from "../components/expenses/DeleteConfirmModal";
 import ReportExport from "../components/expenses/ReportExport";
+import BudgetOverviewCard from "../components/budget/BudgetOverviewCard";
+import UpcomingDuesWidget from "../components/budget/UpcomingDuesWidget";
+import BudgetSettingsModal from "../components/budget/BudgetSettingsModal";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -73,6 +79,11 @@ export default function DashboardPage() {
   const [editingExpense, setEditingExpense] = useState(null);
   const [deletingExpense, setDeletingExpense] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Budget & Fixed Commitments State
+  const [budgetData, setBudgetData] = useState(null);
+  const [budgetLoading, setBudgetLoading] = useState(true);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
 
   // In-app Toast / Notification State
   const [notification, setNotification] = useState(null);
@@ -132,13 +143,60 @@ export default function DashboardPage() {
     [category, search, sortBy, activeDateRange]
   );
 
+  // Fetch Budget data for active cycle
+  const fetchBudget = useCallback(async () => {
+    try {
+      setBudgetLoading(true);
+      const data = await budgetService.getCurrentBudget();
+      if (data.success) {
+        setBudgetData(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch budget:", err);
+    } finally {
+      setBudgetLoading(false);
+    }
+  }, []);
+
   // Trigger data reload on authentication and filter changes
   useEffect(() => {
     if (user && status === "authenticated") {
       fetchExpenses();
       fetchSummary();
+      fetchBudget();
     }
-  }, [user, status, fetchExpenses, fetchSummary]);
+  }, [user, status, fetchExpenses, fetchSummary, fetchBudget]);
+
+  const handleToggleFixedExpense = async (fixedExpenseId, isPaid) => {
+    try {
+      const response = await budgetService.toggleFixedExpense(
+        fixedExpenseId,
+        isPaid
+      );
+      if (response.success) {
+        if (response.completionNotification) {
+          showNotification("success", response.completionNotification.message);
+        } else {
+          showNotification("success", response.message);
+        }
+        fetchBudget();
+      }
+    } catch (err) {
+      showNotification(
+        "error",
+        err.response?.data?.message || "Failed to update fixed commitment."
+      );
+    }
+  };
+
+  const handleDismissNotification = async (notificationId) => {
+    try {
+      await budgetService.dismissNotification(notificationId);
+      fetchBudget();
+    } catch (err) {
+      console.error("Failed to dismiss notification:", err);
+    }
+  };
 
   // Handle Month/Year Change from Navigator
   const handleChangeMonthYear = (year, month) => {
@@ -157,12 +215,14 @@ export default function DashboardPage() {
       showNotification("success", "Expense updated successfully.");
       fetchExpenses();
       fetchSummary();
+      fetchBudget();
       return response;
     } else {
       const response = await expenseService.createExpense(expenseData);
       showNotification("success", "Expense recorded successfully.");
       fetchExpenses();
       fetchSummary();
+      fetchBudget();
       return response;
     }
   };
@@ -178,6 +238,7 @@ export default function DashboardPage() {
       setDeletingExpense(null);
       fetchExpenses();
       fetchSummary();
+      fetchBudget();
     } catch (err) {
       showNotification(
         "error",
@@ -250,6 +311,13 @@ export default function DashboardPage() {
                 <span>Dashboard</span>
               </Link>
               <Link
+                to="/budget"
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:text-slate-900"
+              >
+                <PiggyBank size={14} />
+                <span>Budget & Savings</span>
+              </Link>
+              <Link
                 to="/analytics"
                 className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:text-slate-900"
               >
@@ -268,6 +336,13 @@ export default function DashboardPage() {
                 title="Dashboard"
               >
                 <LayoutDashboard size={18} />
+              </Link>
+              <Link
+                to="/budget"
+                className="p-2 rounded-xl text-slate-600 hover:bg-slate-100"
+                title="Budget & Savings"
+              >
+                <PiggyBank size={18} />
               </Link>
               <Link
                 to="/analytics"
@@ -390,6 +465,48 @@ export default function DashboardPage() {
           )}
         </AnimatePresence>
 
+        {/* Milestone Celebration Banner */}
+        <AnimatePresence>
+          {budgetData?.notifications?.map((notif) => (
+            <motion.div
+              key={notif.id}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center justify-between rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-500/15 via-emerald-400/20 to-teal-500/15 p-4 text-emerald-950 shadow-sm"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-emerald-800">
+                    Milestone Completed!
+                  </span>
+                  <span className="text-xs sm:text-sm font-semibold">
+                    {notif.message}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleDismissNotification(notif.id)}
+                className="rounded-lg p-1.5 text-emerald-700 hover:bg-emerald-200/50 hover:text-emerald-950 transition"
+                title="Dismiss"
+              >
+                <X size={16} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {/* Executive Budget & Spendable Balance Summary */}
+        <BudgetOverviewCard
+          budgetData={budgetData}
+          loading={budgetLoading}
+        />
+
         {/* Time Period Filter Navigation Bar */}
         <TimePeriodBar
           selectedPeriod={selectedPeriod}
@@ -475,8 +592,15 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Right Sidebar: Category Breakdown & Context */}
+          {/* Right Sidebar: Dues Checklist, Category Breakdown & Context */}
           <div className="space-y-6">
+            {/* Upcoming / Monthly Fixed Dues Checklist (House Rent, School Fees, EMIs) */}
+            <UpcomingDuesWidget
+              checklist={budgetData?.fixedExpenses?.checklist}
+              onToggleFixedExpense={handleToggleFixedExpense}
+              onOpenManageModal={() => setIsBudgetModalOpen(true)}
+            />
+
             {/* Category Breakdown (adapts to active time window) */}
             <CategoryBreakdown
               categoryBreakdown={summary?.categoryBreakdown}
@@ -548,6 +672,15 @@ export default function DashboardPage() {
         onClose={() => setDeletingExpense(null)}
         onConfirm={handleDeleteConfirm}
         loading={deleteLoading}
+      />
+
+      {/* Budget & Fixed Commitments Manager Modal */}
+      <BudgetSettingsModal
+        isOpen={isBudgetModalOpen}
+        onClose={() => setIsBudgetModalOpen(false)}
+        budgetData={budgetData}
+        onSettingsSaved={fetchBudget}
+        onNotify={showNotification}
       />
     </main>
   );
