@@ -39,6 +39,26 @@ export const PAYMENT_METHODS = [
   "Other",
 ];
 
+export const CATEGORY_COLORS = {
+  "Food & Dining": "#f59e0b",
+  Transportation: "#0284c7",
+  "Housing & Rent": "#6366f1",
+  Utilities: "#eab308",
+  Entertainment: "#a855f7",
+  Shopping: "#ec4899",
+  Healthcare: "#f43f5e",
+  Education: "#06b6d4",
+  "Personal Care": "#14b8a6",
+  Travel: "#10b981",
+  Investments: "#059669",
+  Bills: "#8b5cf6",
+  Other: "#64748b",
+};
+
+export function getCategoryColor(category) {
+  return CATEGORY_COLORS[category] || "#64748b";
+}
+
 export const CATEGORY_CONFIG = {
   "Food & Dining": {
     icon: Utensils,
@@ -46,6 +66,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-amber-50",
     border: "border-amber-200",
     badgeBg: "bg-amber-100/70",
+    hex: "#f59e0b",
   },
   Transportation: {
     icon: Car,
@@ -53,6 +74,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-sky-50",
     border: "border-sky-200",
     badgeBg: "bg-sky-100/70",
+    hex: "#0284c7",
   },
   "Housing & Rent": {
     icon: Home,
@@ -60,6 +82,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-indigo-50",
     border: "border-indigo-200",
     badgeBg: "bg-indigo-100/70",
+    hex: "#6366f1",
   },
   Utilities: {
     icon: Zap,
@@ -67,6 +90,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-yellow-50",
     border: "border-yellow-200",
     badgeBg: "bg-yellow-100/70",
+    hex: "#eab308",
   },
   Entertainment: {
     icon: Film,
@@ -74,6 +98,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-purple-50",
     border: "border-purple-200",
     badgeBg: "bg-purple-100/70",
+    hex: "#a855f7",
   },
   Shopping: {
     icon: ShoppingBag,
@@ -81,6 +106,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-pink-50",
     border: "border-pink-200",
     badgeBg: "bg-pink-100/70",
+    hex: "#ec4899",
   },
   Healthcare: {
     icon: HeartPulse,
@@ -88,6 +114,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-rose-50",
     border: "border-rose-200",
     badgeBg: "bg-rose-100/70",
+    hex: "#f43f5e",
   },
   Education: {
     icon: GraduationCap,
@@ -95,6 +122,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-cyan-50",
     border: "border-cyan-200",
     badgeBg: "bg-cyan-100/70",
+    hex: "#06b6d4",
   },
   "Personal Care": {
     icon: Sparkles,
@@ -102,6 +130,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-teal-50",
     border: "border-teal-200",
     badgeBg: "bg-teal-100/70",
+    hex: "#14b8a6",
   },
   Travel: {
     icon: Plane,
@@ -109,6 +138,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-emerald-50",
     border: "border-emerald-200",
     badgeBg: "bg-emerald-100/70",
+    hex: "#10b981",
   },
   Investments: {
     icon: TrendingUp,
@@ -116,6 +146,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-emerald-100/80",
     border: "border-emerald-300",
     badgeBg: "bg-emerald-200/70",
+    hex: "#059669",
   },
   Bills: {
     icon: Receipt,
@@ -123,6 +154,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-violet-50",
     border: "border-violet-200",
     badgeBg: "bg-violet-100/70",
+    hex: "#8b5cf6",
   },
   Other: {
     icon: MoreHorizontal,
@@ -130,6 +162,7 @@ export const CATEGORY_CONFIG = {
     bg: "bg-slate-100",
     border: "border-slate-200",
     badgeBg: "bg-slate-200/70",
+    hex: "#64748b",
   },
 };
 

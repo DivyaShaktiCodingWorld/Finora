@@ -63,6 +63,28 @@ Finora is a modern personal finance and expense tracking web application built w
   - Reports are generated only from the logged-in user's own data.
   - Amounts are calculated in cents internally to avoid floating-point errors (reports are formatted in USD).
 
+### 4. Financial Insights & Visual Analytics
+
+- **Dedicated Analytics Page (`/analytics`)**:
+  - Accessible via top navigation switcher tabs between **Dashboard** and **Analytics**.
+  - Dynamic **Year Selector** (`<` / `>` controls and dropdown) to visualize year-by-year spending patterns.
+  - Quick "+ Add Expense" trigger and live refresh button.
+- **Month-wise Stacked Bar Chart**:
+  - 12-month timeline (Jan to Dec) where each month is represented by a single vertical bar.
+  - Each bar is stacked with distinct colored segments representing category expenditures in that month.
+  - Interactive mouse tracking tooltip detailing the monthly total and itemized category breakdown (amounts and percentages).
+  - Category legend with live toggle filtering and annual totals.
+- **Category Donut / Pie Chart**:
+  - Visual distribution of category expenditures with custom brand palette arcs.
+  - Center readout highlighting annual total expenditure and transaction count.
+  - Hovering any slice or category row dynamically reveals percentage shares, counts, and amounts.
+- **Top Most Expense Visual Highlight**:
+  - Hero visual card showcasing the **#1 single largest purchase** of the year (title, category badge, formatted amount, date, payment method, notes, and % share of the year's total).
+  - **Top 5 Largest Transactions Leaderboard** with rank badges (#1 to #5).
+- **Recent Transactions Feed**:
+  - Displays the user's latest expense activity with rich category icons, dates, payment method badges, notes, and amounts.
+  - Includes a direct **"View All Transactions"** navigation link to the Dashboard.
+
 ---
 
 ## Tech Stack
@@ -152,6 +174,7 @@ VITE_API_URL=http://localhost:5000/api
 
 - `GET /api/expenses` – Retrieve user's expenses (supports `category`, `search`, `sortBy`, `startDate`, `endDate`)
 - `GET /api/expenses/summary` – Summary metrics & category breakdown (supports `startDate`, `endDate`)
+- `GET /api/expenses/analytics` – Annual analytics data (supports `year`: returns monthly stacked trends, category distribution, top expenses, summary, and recent transactions)
 - `GET /api/expenses/:id` – Retrieve a specific expense by ID
 - `POST /api/expenses` – Create a new expense (requires CSRF token)
 - `PUT /api/expenses/:id` – Update an existing expense (requires CSRF token)
