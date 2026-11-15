@@ -277,6 +277,14 @@ export const getExpenseById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
+    // Safety fallback: if router falls through on outdated server instance
+    if (id === "analytics") {
+      return getExpenseAnalytics(req, res, next);
+    }
+    if (id === "summary") {
+      return getExpenseSummary(req, res, next);
+    }
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         message: "Invalid expense ID format.",
@@ -409,6 +417,259 @@ export const deleteExpense = async (req, res, next) => {
       success: true,
       message: "Expense deleted successfully.",
       deletedId: id,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/expenses/analytics?year=2026
+export const getExpenseAnalytics = async (req, res, next) => {
+  try {
+    const rawUserId = req.user?._id;
+    const userObjectId =
+      rawUserId && mongoose.Types.ObjectId.isValid(rawUserId)
+        ? new mongoose.Types.ObjectId(rawUserId)
+        : rawUserId;
+
+    const requestedYear = parseInt(req.query.year, 10);
+    const currentYear = new Date().getFullYear();
+    const year =
+      !isNaN(requestedYear) && requestedYear >= 2000 && requestedYear <= 2100
+        ? requestedYear
+        : currentYear;
+
+    const startOfYear = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+    const endOfYear = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+
+    const yearFilter = {
+      user: userObjectId,
+      date: { $gte: startOfYear, $lte: endOfYear },
+    };
+
+    const MONTH_NAMES = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    const FULL_MONTH_NAMES = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    // Run parallel aggregation pipelines
+    const [
+      yearSummaryStats,
+      monthlyCategoryStats,
+      categoryStats,
+      topExpenses,
+      recentTransactions,
+      yearsResult,
+    ] = await Promise.all([
+      // 1. Year total and transaction count
+      Expense.aggregate([
+        { $match: yearFilter },
+        {
+          $group: {
+            _id: null,
+            totalSpent: { $sum: "$amount" },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+
+      // 2. Month-by-month and category breakdown (for Stacked Bar Graph)
+      Expense.aggregate([
+        { $match: yearFilter },
+        {
+          $project: {
+            month: { $month: { $toDate: "$date" } },
+            category: "$category",
+            amount: "$amount",
+          },
+        },
+        {
+          $group: {
+            _id: { month: "$month", category: "$category" },
+            total: { $sum: "$amount" },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { "_id.month": 1, total: -1 } },
+      ]),
+
+      // 3. Yearly Category Totals (for Pie Chart)
+      Expense.aggregate([
+        { $match: yearFilter },
+        {
+          $group: {
+            _id: "$category",
+            total: { $sum: "$amount" },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { total: -1 } },
+      ]),
+
+      // 4. Top Expenses in Year (for Visual Highlight & Leaderboard)
+      Expense.find(yearFilter)
+        .sort({ amount: -1, date: -1 })
+        .limit(5)
+        .lean(),
+
+      // 5. Recent Transactions
+      Expense.find({ user: userObjectId })
+        .sort({ date: -1, createdAt: -1 })
+        .limit(6)
+        .lean(),
+
+      // 6. Distinct years with user data
+      Expense.aggregate([
+        { $match: { user: userObjectId } },
+        { $project: { year: { $year: { $toDate: "$date" } } } },
+        { $group: { _id: "$year" } },
+        { $sort: { _id: -1 } },
+      ]),
+    ]);
+
+    const yearTotalSpent =
+      Math.round((yearSummaryStats[0]?.totalSpent || 0) * 100) / 100;
+    const yearTotalCount = yearSummaryStats[0]?.count || 0;
+
+    // Build 12 months array for stacked bar chart
+    const monthlyMap = new Map();
+    for (let i = 1; i <= 12; i += 1) {
+      monthlyMap.set(i, {
+        month: i,
+        monthIndex: i - 1,
+        name: MONTH_NAMES[i - 1],
+        fullName: FULL_MONTH_NAMES[i - 1],
+        total: 0,
+        categories: [],
+        byCategory: {},
+      });
+    }
+
+    monthlyCategoryStats.forEach((item) => {
+      const monthNum = item._id.month;
+      const category = item._id.category;
+      const total = Math.round(item.total * 100) / 100;
+      const count = item.count;
+
+      const monthData = monthlyMap.get(monthNum);
+      if (monthData) {
+        monthData.total = Math.round((monthData.total + total) * 100) / 100;
+        monthData.categories.push({
+          category,
+          total,
+          count,
+        });
+        monthData.byCategory[category] = total;
+      }
+    });
+
+    const monthlyTrends = Array.from(monthlyMap.values()).map((m) => {
+      const categoriesWithPercent = m.categories.map((c) => ({
+        ...c,
+        percentage:
+          m.total > 0 ? Math.round((c.total / m.total) * 1000) / 10 : 0,
+      }));
+      return {
+        ...m,
+        categories: categoriesWithPercent,
+      };
+    });
+
+    // Peak spending month
+    let peakMonth = null;
+    monthlyTrends.forEach((m) => {
+      if (!peakMonth || m.total > peakMonth.total) {
+        peakMonth = m;
+      }
+    });
+
+    // Yearly category breakdown with percentages
+    const categoryBreakdown = categoryStats.map((item) => {
+      const total = Math.round(item.total * 100) / 100;
+      return {
+        category: item._id,
+        total,
+        count: item.count,
+        percentage:
+          yearTotalSpent > 0
+            ? Math.round((total / yearTotalSpent) * 1000) / 10
+            : 0,
+      };
+    });
+
+    // Top expense visual
+    const peakExpense = topExpenses[0]
+      ? {
+          ...topExpenses[0],
+          percentageOfYear:
+            yearTotalSpent > 0
+              ? Math.round((topExpenses[0].amount / yearTotalSpent) * 1000) / 10
+              : 0,
+        }
+      : null;
+
+    // Available years list
+    let availableYears = yearsResult
+      .map((y) => y._id)
+      .filter((y) => typeof y === "number" && !isNaN(y));
+    if (!availableYears.includes(year)) availableYears.push(year);
+    if (!availableYears.includes(currentYear)) availableYears.push(currentYear);
+    availableYears.sort((a, b) => b - a);
+
+    const activeMonthsCount = monthlyTrends.filter((m) => m.total > 0).length;
+    const avgMonthlySpent =
+      activeMonthsCount > 0
+        ? Math.round((yearTotalSpent / activeMonthsCount) * 100) / 100
+        : Math.round((yearTotalSpent / 12) * 100) / 100;
+
+    return res.status(200).json({
+      success: true,
+      year,
+      availableYears,
+      summary: {
+        yearTotalSpent,
+        yearTotalCount,
+        avgMonthlySpent,
+        activeMonthsCount,
+        peakMonth: peakMonth && peakMonth.total > 0 ? peakMonth : null,
+        topCategory: categoryBreakdown[0] || null,
+      },
+      monthlyTrends,
+      categoryBreakdown,
+      peakExpense,
+      topExpenses: topExpenses.map((exp) => ({
+        ...exp,
+        percentageOfYear:
+          yearTotalSpent > 0
+            ? Math.round((exp.amount / yearTotalSpent) * 1000) / 10
+            : 0,
+      })),
+      recentTransactions,
     });
   } catch (error) {
     next(error);

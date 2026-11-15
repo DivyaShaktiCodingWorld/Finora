@@ -11,6 +11,11 @@ const expenseService = {
     return response.data;
   },
 
+  async getExpenseAnalytics(params = {}) {
+    const response = await api.get("/expenses/analytics", { params });
+    return response.data;
+  },
+
   async getExpenseById(id) {
     const response = await api.get(`/expenses/${id}`);
     return response.data;

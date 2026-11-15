@@ -4,6 +4,7 @@ import { verifyCsrfToken } from "../middleware/csrfMiddleware.js";
 import {
   getExpenses,
   getExpenseSummary,
+  getExpenseAnalytics,
   getExpenseById,
   createExpense,
   updateExpense,
@@ -18,6 +19,7 @@ router.use(protect);
 // Read endpoints
 router.get("/", getExpenses);
 router.get("/summary", getExpenseSummary);
+router.get("/analytics", getExpenseAnalytics);
 router.get("/:id", getExpenseById);
 
 // Mutating endpoints require CSRF verification

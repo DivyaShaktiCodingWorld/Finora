@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowUpRight,
@@ -12,7 +12,8 @@ import {
   AlertCircle,
   X,
   CreditCard,
-  Calendar,
+  BarChart3,
+  LayoutDashboard,
 } from "lucide-react";
 
 import { useAuthStore } from "../store/authStore";
@@ -228,17 +229,55 @@ export default function DashboardPage() {
       {/* Top Sticky Header */}
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-finora-900 text-white shadow-xs">
-              <Wallet size={20} />
-            </div>
+          <div className="flex items-center gap-6">
+            <Link to="/dashboard" className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-finora-900 text-white shadow-xs">
+                <Wallet size={20} />
+              </div>
 
-            <span className="font-display text-xl font-extrabold tracking-tight text-finora-950">
-              finora<span className="text-finora-500">.</span>
-            </span>
+              <span className="font-display text-xl font-extrabold tracking-tight text-finora-950">
+                finora<span className="text-finora-500">.</span>
+              </span>
+            </Link>
+
+            {/* Navigation Switcher Tabs */}
+            <nav className="hidden sm:flex items-center gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200/60">
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-finora-900 shadow-xs"
+              >
+                <LayoutDashboard size={14} className="text-finora-600" />
+                <span>Dashboard</span>
+              </Link>
+              <Link
+                to="/analytics"
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:text-slate-900"
+              >
+                <BarChart3 size={14} />
+                <span>Analytics</span>
+              </Link>
+            </nav>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Mobile Nav Switcher */}
+            <div className="flex sm:hidden items-center gap-1">
+              <Link
+                to="/dashboard"
+                className="p-2 rounded-xl bg-finora-50 text-finora-700"
+                title="Dashboard"
+              >
+                <LayoutDashboard size={18} />
+              </Link>
+              <Link
+                to="/analytics"
+                className="p-2 rounded-xl text-slate-600 hover:bg-slate-100"
+                title="Analytics"
+              >
+                <BarChart3 size={18} />
+              </Link>
+            </div>
+
             {/* Quick Add Button in Header */}
             <button
               type="button"

@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/routing/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 
 import { useAuthStore } from "./store/authStore";
 
@@ -27,6 +28,7 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
