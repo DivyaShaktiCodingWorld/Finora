@@ -26,6 +26,7 @@ import ExpenseList from "../components/expenses/ExpenseList";
 import CategoryBreakdown from "../components/expenses/CategoryBreakdown";
 import ExpenseModal from "../components/expenses/ExpenseModal";
 import DeleteConfirmModal from "../components/expenses/DeleteConfirmModal";
+import ReportExport from "../components/expenses/ReportExport";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -368,7 +369,16 @@ export default function DashboardPage() {
           activeDateRange={activeDateRange}
           loading={loading && !summary}
         />
-
+{/* Report Export (PDF / CSV) for the active period and filters */}
+<ReportExport
+  activeDateRange={activeDateRange}
+  search={search}
+  category={category}
+  sortBy={sortBy}
+  recordCount={expenses.length}
+  loading={loading}
+  onNotify={showNotification}
+/>
         {/* Main Section: Records & Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-7 items-start">
           {/* Main 2 Cols: Search/Filter & Expense List */}
