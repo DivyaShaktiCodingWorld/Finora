@@ -1,8 +1,10 @@
-
 import crypto from "crypto";
 
-export const createCsrfToken = (res) => {
-  const csrfToken = crypto.randomBytes(32).toString("hex");
+export const createCsrfToken = (res, existingToken = null) => {
+  const csrfToken =
+    existingToken && existingToken.length === 64
+      ? existingToken
+      : crypto.randomBytes(32).toString("hex");
 
   res.cookie("csrfToken", csrfToken, {
     httpOnly: false,
@@ -15,10 +17,16 @@ export const createCsrfToken = (res) => {
 };
 
 export const verifyCsrfToken = (req, res, next) => {
-  const allowedOrigin = process.env.CLIENT_URL;
+  const allowedOrigins = [
+    process.env.CLIENT_URL,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ].filter(Boolean);
+
   const origin = req.get("origin");
 
-  if (!origin || origin !== allowedOrigin) {
+  // Validate origin if present
+  if (origin && !allowedOrigins.includes(origin)) {
     return res.status(403).json({
       message: "Invalid request origin.",
     });
