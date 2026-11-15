@@ -1,1 +1,1 @@
-Project status: Authentication & Reports Generation module completed
+Project status: Authentication, Reports Generation, Expense module and Analytics Dashboard completed.
