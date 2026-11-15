@@ -1,6 +1,6 @@
 
 import "dotenv/config";
-
+import reportRoutes from "./routes/reportRoutes.js";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -37,7 +37,6 @@ const allowedOrigins = [
 
 // Security headers
 app.use(helmet());
-
 // CORS
 app.use(
   cors({
@@ -71,7 +70,7 @@ app.get("/api/health", (req, res) => {
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/expenses", expenseRoutes);
-
+app.use("/api/reports", reportRoutes);
 // Error handling
 app.use(notFound);
 app.use(errorHandler);
