@@ -30,7 +30,8 @@ const authLimiter = rateLimit({
 
 // Get CSRF token
 router.get("/csrf", (req, res) => {
-  const csrfToken = createCsrfToken(res);
+  const existingCookie = req.cookies?.csrfToken;
+  const csrfToken = createCsrfToken(res, existingCookie);
 
   res.status(200).json({
     csrfToken,
