@@ -15,6 +15,7 @@ import {
   Sparkles,
   LayoutDashboard,
   Calendar,
+  PiggyBank,
 } from "lucide-react";
 
 import { useAuthStore } from "../store/authStore";
@@ -134,6 +135,13 @@ export default function AnalyticsPage() {
                 <span>Dashboard</span>
               </Link>
               <Link
+                to="/budget"
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:text-slate-900"
+              >
+                <PiggyBank size={14} />
+                <span>Budget & Savings</span>
+              </Link>
+              <Link
                 to="/analytics"
                 className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-finora-900 shadow-xs"
               >
@@ -152,6 +160,13 @@ export default function AnalyticsPage() {
                 title="Dashboard"
               >
                 <LayoutDashboard size={18} />
+              </Link>
+              <Link
+                to="/budget"
+                className="p-2 rounded-xl text-slate-600 hover:bg-slate-100"
+                title="Budget & Savings"
+              >
+                <PiggyBank size={18} />
               </Link>
               <Link
                 to="/analytics"
