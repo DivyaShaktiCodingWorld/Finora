@@ -1,10 +1,19 @@
 import PDFDocument from "pdfkit";
-import {
-  formatMoney,
-  formatDate,
-  formatGeneratedAt,
-} from "./reportData.js";
+import { formatMoney, formatDate, formatGeneratedAt } from "./reportData.js";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
+const FONT_REGULAR = path.join(
+  __dirname,
+  "../assets/fonts/NotoSans-Regular.ttf"
+);
+
+const FONT_BOLD = path.join(
+  __dirname,
+  "../assets/fonts/NotoSans-Bold.ttf"
+);
 // Finora brand colors (same palette as the web app)
 const COLORS = {
   brand950: "#06291c",
@@ -38,7 +47,7 @@ const pdfSafe = (value) => {
   const text = String(value ?? "").replace(/\r\n?/g, "\n");
   return text.replace(
     /[^\n\u0020-\u007E\u00A0-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u20AC\u20B9]+/g,
-    "?"
+    "?",
   );
 };
 
@@ -77,19 +86,21 @@ const drawContinuationHeader = (ctx) => {
   doc.rect(0, 0, width, 34).fill(COLORS.brand950);
   doc.rect(0, 34, width, 2).fill(COLORS.brand500);
 
-  doc.font("Helvetica-Bold").fontSize(13).fillColor(COLORS.white);
+  doc.font("Finora-Bold").fontSize(13).fillColor(COLORS.white);
   doc.text("finora", MARGIN, 11, { lineBreak: false });
   const brandWidth = doc.widthOfString("finora");
   doc.fillColor(COLORS.brand400).text(".", MARGIN + brandWidth, 11, {
     lineBreak: false,
   });
 
-  doc.font("Helvetica").fontSize(8).fillColor(COLORS.brand200);
+  doc.font("Finora").fontSize(8).fillColor(COLORS.brand200);
   doc.text(
-    pdfSafe(`Expense Report  |  ${data.period.name}  |  ${data.period.dateRangeText}`),
+    pdfSafe(
+      `Expense Report  |  ${data.period.name}  |  ${data.period.dateRangeText}`,
+    ),
     MARGIN,
     14,
-    { width: contentWidth(doc), align: "right", lineBreak: false }
+    { width: contentWidth(doc), align: "right", lineBreak: false },
   );
 };
 
@@ -115,32 +126,32 @@ const drawCoverHeader = (ctx) => {
   doc.rect(0, 0, width, 118).fill(COLORS.brand950);
   doc.rect(0, 118, width, 4).fill(COLORS.brand500);
 
-  doc.font("Helvetica-Bold").fontSize(24).fillColor(COLORS.white);
+  doc.font("Finora-Bold").fontSize(24).fillColor(COLORS.white);
   doc.text("finora", MARGIN, 28, { lineBreak: false });
   const brandWidth = doc.widthOfString("finora");
   doc.fillColor(COLORS.brand400).text(".", MARGIN + brandWidth, 28, {
     lineBreak: false,
   });
 
-  doc.font("Helvetica-Bold").fontSize(15).fillColor(COLORS.brand200);
+  doc.font("Finora-Bold").fontSize(15).fillColor(COLORS.brand200);
   doc.text("Expense Report", MARGIN, 62, { lineBreak: false });
 
-  doc.font("Helvetica").fontSize(9.5).fillColor(COLORS.white);
+  doc.font("Finora").fontSize(9.5).fillColor(COLORS.white);
   doc.text(
     pdfSafe(`${data.period.name}  |  ${data.period.dateRangeText}`),
     MARGIN,
     86,
-    { width: contentWidth(doc) * 0.62, lineBreak: false, ellipsis: true }
+    { width: contentWidth(doc) * 0.62, lineBreak: false, ellipsis: true },
   );
 
-  doc.font("Helvetica").fontSize(7.5).fillColor(COLORS.brand200);
+  doc.font("Finora").fontSize(7.5).fillColor(COLORS.brand200);
   doc.text("GENERATED ON", MARGIN, 34, {
     width: contentWidth(doc),
     align: "right",
     lineBreak: false,
     characterSpacing: 1,
   });
-  doc.font("Helvetica-Bold").fontSize(10).fillColor(COLORS.white);
+  doc.font("Finora-Bold").fontSize(10).fillColor(COLORS.white);
   doc.text(formatGeneratedAt(data.generatedAt), MARGIN, 48, {
     width: contentWidth(doc),
     align: "right",
@@ -179,10 +190,10 @@ const drawInfoBox = (ctx) => {
     const x = MARGIN + column * columnWidth + 14;
     const y = ctx.y + 9 + row * rowHeight;
 
-    doc.font("Helvetica").fontSize(6.8).fillColor(COLORS.text500);
+    doc.font("Finora").fontSize(6.8).fillColor(COLORS.text500);
     doc.text(label, x, y, { lineBreak: false, characterSpacing: 0.8 });
 
-    doc.font("Helvetica-Bold").fontSize(9.5).fillColor(COLORS.text900);
+    doc.font("Finora-Bold").fontSize(9.5).fillColor(COLORS.text900);
     const safeValue = fitText(doc, pdfSafe(value), columnWidth - 28);
     doc.text(safeValue, x, y + 11, { lineBreak: false });
   });
@@ -196,7 +207,7 @@ const drawSummaryCards = (ctx) => {
   const { summary, period } = data;
   const gap = 10;
   const cardWidth = (contentWidth(doc) - gap * 3) / 4;
-  const cardHeight = 58;
+  const cardHeight = 64;
 
   const cards = [
     {
@@ -256,11 +267,11 @@ const drawSummaryCards = (ctx) => {
       .lineWidth(0.8)
       .fillAndStroke(
         card.dark ? COLORS.brand900 : COLORS.white,
-        card.dark ? COLORS.brand900 : COLORS.border
+        card.dark ? COLORS.brand900 : COLORS.border,
       );
 
     doc
-      .font("Helvetica")
+      .font("Finora")
       .fontSize(6.5)
       .fillColor(card.dark ? COLORS.brand200 : COLORS.text500);
     doc.text(card.label, x + 10, y + 9, {
@@ -269,15 +280,22 @@ const drawSummaryCards = (ctx) => {
     });
 
     const valueText = pdfSafe(card.value);
-    const valueSize = fitFontSize(doc, valueText, "Helvetica-Bold", 14, 8, innerWidth);
+    const valueSize = fitFontSize(
+      doc,
+      valueText,
+      "Finora-Bold",
+      14,
+      8,
+      innerWidth,
+    );
     doc
-      .font("Helvetica-Bold")
+      .font("Finora-Bold")
       .fontSize(valueSize)
       .fillColor(card.dark ? COLORS.white : COLORS.text900);
     doc.text(valueText, x + 10, y + 22, { lineBreak: false });
 
     doc
-      .font("Helvetica")
+      .font("Finora")
       .fontSize(7)
       .fillColor(card.dark ? COLORS.brand200 : COLORS.text500);
     doc.text(fitText(doc, pdfSafe(card.sub), innerWidth), x + 10, y + 42, {
@@ -285,7 +303,7 @@ const drawSummaryCards = (ctx) => {
     });
   });
 
-  ctx.y += cardHeight * 2 + gap + 22;
+  ctx.y += cardHeight * 2 + gap + 28;
 };
 
 // Section title
@@ -294,11 +312,11 @@ const drawSectionTitle = (ctx, title, subtitle) => {
 
   doc.rect(MARGIN, ctx.y + 1, 3, 15).fill(COLORS.brand500);
 
-  doc.font("Helvetica-Bold").fontSize(12).fillColor(COLORS.text900);
+  doc.font("Finora-Bold").fontSize(12).fillColor(COLORS.text900);
   doc.text(title, MARGIN + 10, ctx.y, { lineBreak: false });
 
   if (subtitle) {
-    doc.font("Helvetica").fontSize(8).fillColor(COLORS.text500);
+    doc.font("Finora").fontSize(8).fillColor(COLORS.text500);
     doc.text(pdfSafe(subtitle), MARGIN + 10, ctx.y + 15, { lineBreak: false });
   }
 
@@ -323,7 +341,7 @@ const measureRow = (doc, columns, row) => {
       cellHeight = 10;
     } else {
       doc
-        .font(column.bold ? "Helvetica-Bold" : "Helvetica")
+        .font(column.bold ? "Finora-Bold" : "Finora")
         .fontSize(BODY_FONT_SIZE);
       cellHeight += doc.heightOfString(pdfSafe(cell.text) || " ", {
         width: textWidth,
@@ -331,7 +349,7 @@ const measureRow = (doc, columns, row) => {
       });
 
       if (cell.sub) {
-        doc.font("Helvetica").fontSize(BODY_FONT_SIZE - 1.5);
+        doc.font("Finora").fontSize(BODY_FONT_SIZE - 1.5);
         cellHeight +=
           2 + doc.heightOfString(pdfSafe(cell.sub), { width: textWidth });
       }
@@ -346,10 +364,12 @@ const measureRow = (doc, columns, row) => {
 const drawTableHeader = (ctx, columns) => {
   const { doc } = ctx;
 
-  doc.rect(MARGIN, ctx.y, contentWidth(doc), TABLE_HEADER_HEIGHT).fill(COLORS.brand900);
+  doc
+    .rect(MARGIN, ctx.y, contentWidth(doc), TABLE_HEADER_HEIGHT)
+    .fill(COLORS.brand900);
 
   let x = MARGIN;
-  doc.font("Helvetica-Bold").fontSize(7).fillColor(COLORS.white);
+  doc.font("Finora-Bold").fontSize(7).fillColor(COLORS.white);
 
   columns.forEach((column) => {
     doc.text(column.label.toUpperCase(), x + CELL_PAD_X, ctx.y + 8, {
@@ -389,10 +409,7 @@ const drawTableRow = (ctx, columns, row, rowHeight, options = {}) => {
     const textY = ctx.y + CELL_PAD_Y;
 
     if (column.bar) {
-      doc
-        .font("Helvetica")
-        .fontSize(BODY_FONT_SIZE)
-        .fillColor(COLORS.text700);
+      doc.font("Finora").fontSize(BODY_FONT_SIZE).fillColor(COLORS.text700);
       doc.text(pdfSafe(cell.text), textX, textY, {
         width: 34,
         lineBreak: false,
@@ -406,13 +423,19 @@ const drawTableRow = (ctx, columns, row, rowHeight, options = {}) => {
       doc.roundedRect(barX, barY, barWidth, 5, 2.5).fill(COLORS.brand100);
       if (percent > 0) {
         doc
-          .roundedRect(barX, barY, Math.max((barWidth * percent) / 100, 2.5), 5, 2.5)
+          .roundedRect(
+            barX,
+            barY,
+            Math.max((barWidth * percent) / 100, 2.5),
+            5,
+            2.5,
+          )
           .fill(COLORS.brand500);
       }
     } else {
       const isStrong = column.bold || isTotal;
       doc
-        .font(isStrong ? "Helvetica-Bold" : "Helvetica")
+        .font(isStrong ? "Finora-Bold" : "Finora")
         .fontSize(BODY_FONT_SIZE)
         .fillColor(column.bold ? COLORS.text900 : COLORS.text700);
 
@@ -428,7 +451,7 @@ const drawTableRow = (ctx, columns, row, rowHeight, options = {}) => {
         });
 
         doc
-          .font("Helvetica")
+          .font("Finora")
           .fontSize(BODY_FONT_SIZE - 1.5)
           .fillColor(COLORS.text500);
         doc.text(pdfSafe(cell.sub), textX, textY + mainHeight + 2, {
@@ -452,7 +475,10 @@ const drawTableRow = (ctx, columns, row, rowHeight, options = {}) => {
   ctx.y += rowHeight;
 };
 
-const drawTable = (ctx, { columns, rows, totalRow = null, minStartSpace = 90 }) => {
+const drawTable = (
+  ctx,
+  { columns, rows, totalRow = null, minStartSpace = 90 },
+) => {
   const { doc } = ctx;
 
   ensureSpace(ctx, Math.max(minStartSpace, TABLE_HEADER_HEIGHT + 30));
@@ -541,7 +567,7 @@ const drawTopExpensesSection = (ctx) => {
   drawSectionTitle(
     ctx,
     "Top Expenses",
-    `Largest ${rows.length} transaction(s) in this report`
+    `Largest ${rows.length} transaction(s) in this report`,
   );
   drawTable(ctx, { columns, rows });
 };
@@ -571,7 +597,7 @@ const drawTransactionsSection = (ctx) => {
   drawSectionTitle(
     ctx,
     "Transaction Details",
-    `${data.summary.count} transaction(s)  |  Sorted by: ${data.filters.sortLabel}`
+    `${data.summary.count} transaction(s)  |  Sorted by: ${data.filters.sortLabel}`,
   );
 
   drawTable(ctx, {
@@ -597,19 +623,19 @@ const drawEmptyState = (ctx) => {
     .lineWidth(0.8)
     .fillAndStroke(COLORS.zebra, COLORS.border);
 
-  doc.font("Helvetica-Bold").fontSize(11).fillColor(COLORS.text900);
+  doc.font("Finora-Bold").fontSize(11).fillColor(COLORS.text900);
   doc.text("No transactions found", MARGIN, ctx.y + 20, {
     width,
     align: "center",
     lineBreak: false,
   });
 
-  doc.font("Helvetica").fontSize(9).fillColor(COLORS.text500);
+  doc.font("Finora").fontSize(9).fillColor(COLORS.text500);
   doc.text(
     "There are no expenses for the selected period and filters.",
     MARGIN,
     ctx.y + 38,
-    { width, align: "center", lineBreak: false }
+    { width, align: "center", lineBreak: false },
   );
 
   ctx.y += 90;
@@ -634,12 +660,12 @@ const drawFooters = (doc) => {
       .strokeColor(COLORS.border)
       .stroke();
 
-    doc.font("Helvetica").fontSize(7.5).fillColor(COLORS.text500);
+    doc.font("Finora").fontSize(7.5).fillColor(COLORS.text500);
     doc.text(
       "Finora  |  Personal Finance & Expense Management",
       MARGIN,
       pageHeight - 32,
-      { lineBreak: false }
+      { lineBreak: false },
     );
     doc.text(`Page ${i + 1} of ${range.count}`, MARGIN, pageHeight - 32, {
       width: pageWidth - MARGIN * 2,
@@ -663,10 +689,14 @@ export const buildPdfReport = (data) =>
           Title: "Finora Expense Report",
           Author: "Finora",
           Creator: "Finora",
-          Subject: pdfSafe(`${data.period.name} - ${data.period.dateRangeText}`),
+          Subject: pdfSafe(
+            `${data.period.name} - ${data.period.dateRangeText}`,
+          ),
         },
       });
-
+// Register Unicode fonts for proper INR currency rendering
+doc.registerFont("Finora", FONT_REGULAR);
+doc.registerFont("Finora-Bold", FONT_BOLD);
       const chunks = [];
       doc.on("data", (chunk) => chunks.push(chunk));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
@@ -686,7 +716,7 @@ export const buildPdfReport = (data) =>
           "Category Breakdown",
           "Spending grouped by category",
           "Category",
-          data.categories
+          data.categories,
         );
 
         drawBreakdownSection(
@@ -694,7 +724,7 @@ export const buildPdfReport = (data) =>
           "Payment Method Breakdown",
           "Spending grouped by payment method",
           "Payment Method",
-          data.paymentMethods
+          data.paymentMethods,
         );
 
         if (data.months.length > 1) {
@@ -703,7 +733,7 @@ export const buildPdfReport = (data) =>
             "Monthly Breakdown",
             "Spending grouped by month",
             "Month",
-            data.months
+            data.months,
           );
         }
 
