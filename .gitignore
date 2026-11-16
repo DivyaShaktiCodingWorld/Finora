@@ -10,3 +10,10 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Project Submission Reports & Documents (Private - Never commit/push)
+*.docx
+*.pdf
+/reports/
+/submission/
+*Project_Report*
