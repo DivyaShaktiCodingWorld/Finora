@@ -4,7 +4,7 @@ import crypto from "crypto";
 import BudgetPlan from "../models/BudgetPlan.js";
 import FixedExpense from "../models/FixedExpense.js";
 import Expense, { EXPENSE_CATEGORIES } from "../models/Expense.js";
-
+import { sendFinoraEmail } from "../utils/emailService.js";
 // Helper to format currency in server messages
 const formatMoney = (amount) =>
   new Intl.NumberFormat("en-US", {
@@ -340,7 +340,27 @@ export const updateBudgetSettings = async (req, res, next) => {
     }
 
     await budgetPlan.save();
-
+void sendFinoraEmail({
+  to: req.user.email,
+  subject: "Finora: Budget settings updated",
+  heading: "Your budget settings have been updated",
+  intro: `Hello ${req.user.name || "there"}, your monthly budget settings were successfully updated.`,
+  details: [
+    {
+      label: "Monthly income",
+      value: new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(monthlySalary),
+    },
+    {
+      label: "Budget cycle",
+      value: cycleType === "salary_day"
+        ? `Salary day: ${salaryDay}`
+        : "Calendar month",
+    },
+  ],
+});
     return res.status(200).json({
       success: true,
       message: "Budget settings updated successfully.",
@@ -458,6 +478,26 @@ export const toggleFixedExpense = async (req, res, next) => {
     }
 
     await Promise.all([fixedExpense.save(), budgetPlan.save()]);
+    void sendFinoraEmail({
+  to: req.user.email,
+  subject: `Finora: ${fixedExpense.title} payment status`,
+  heading: isPaid
+    ? "Fixed commitment marked as paid"
+    : "Fixed commitment marked as pending",
+  intro: `Your fixed commitment "${fixedExpense.title}" has a new payment status.`,
+  details: [
+    { label: "Commitment", value: fixedExpense.title },
+    {
+      label: "Amount",
+      value: new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(fixedExpense.amount),
+    },
+    { label: "Status", value: isPaid ? "Paid" : "Pending" },
+    { label: "Category", value: fixedExpense.category },
+  ],
+});
 
     return res.status(200).json({
       success: true,
@@ -562,7 +602,24 @@ export const createFixedExpense = async (req, res, next) => {
       remainingInstallments: remaining,
       notes: notes || "",
     });
-
+void sendFinoraEmail({
+  to: req.user.email,
+  subject: "Finora: Fixed commitment added",
+  heading: "A fixed commitment was added",
+  intro: "Your new fixed commitment has been saved successfully.",
+  details: [
+    { label: "Title", value: fixedExpense.title },
+    { label: "Category", value: fixedExpense.category },
+    {
+      label: "Amount",
+      value: new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(fixedExpense.amount),
+    },
+    { label: "Due day", value: String(fixedExpense.dueDay) },
+  ],
+});
     return res.status(201).json({
       success: true,
       message: `Fixed commitment "${title}" created successfully.`,
@@ -599,7 +656,24 @@ export const updateFixedExpense = async (req, res, next) => {
     if (!fixedExpense) {
       return res.status(404).json({ message: "Fixed expense not found." });
     }
-
+void sendFinoraEmail({
+  to: req.user.email,
+  subject: "Finora: Fixed commitment updated",
+  heading: "Your fixed commitment was updated",
+  intro: "Your fixed commitment details have been updated successfully.",
+  details: [
+    { label: "Title", value: fixedExpense.title },
+    { label: "Category", value: fixedExpense.category },
+    {
+      label: "Amount",
+      value: new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(fixedExpense.amount),
+    },
+    { label: "Due day", value: String(fixedExpense.dueDay) },
+  ],
+});
     return res.status(200).json({
       success: true,
       message: `"${fixedExpense.title}" updated successfully.`,
@@ -628,7 +702,23 @@ export const deleteFixedExpense = async (req, res, next) => {
     if (!fixedExpense) {
       return res.status(404).json({ message: "Fixed expense not found." });
     }
-
+void sendFinoraEmail({
+  to: req.user.email,
+  subject: "Finora: Fixed commitment deleted",
+  heading: "A fixed commitment was deleted",
+  intro: "The following fixed commitment was removed from your account.",
+  details: [
+    { label: "Title", value: fixedExpense.title },
+    { label: "Category", value: fixedExpense.category },
+    {
+      label: "Amount",
+      value: new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(fixedExpense.amount),
+    },
+  ],
+});
     // Clean up from cycles paid IDs
     await BudgetPlan.updateOne(
       { user: userId },

@@ -5,7 +5,7 @@ import {
 } from "../utils/reportData.js";
 import { buildCsvReport } from "../utils/csvReport.js";
 import { buildPdfReport } from "../utils/pdfReport.js";
-
+import { sendFinoraEmail } from "../utils/emailService.js";
 // Shared helper: validates the query and builds the report data
 const prepareReport = async (req, res) => {
   const validation = parseReportQuery(req.query);
@@ -69,3 +69,60 @@ export const downloadPdfReport = async (req, res, next) => {
     return handleReportError(error, res, next);
   }
 };
+
+// POST /api/reports/email
+export const emailPdfReport = async (req, res, next) => {
+  try {
+    const data = await prepareReport(req, res);
+    if (!data) return;
+
+    const pdfBuffer = await buildPdfReport(data);
+    const fileName = buildReportFileName(data, "pdf");
+
+    const money = (amount) =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: data.currency || "USD",
+      }).format(Number(amount || 0));
+
+    const result = await sendFinoraEmail({
+      to: req.user.email,
+      subject: `Finora: Your ${data.period.name} financial report`,
+      heading: "Your financial report is ready",
+      intro: `Hello ${req.user.name || "there"}, your requested Finora PDF report is attached to this email.`,
+      details: [
+        { label: "Report period", value: data.period.name },
+        { label: "Date range", value: data.period.dateRangeText },
+        { label: "Transactions", value: String(data.summary.count) },
+        { label: "Total spending", value: money(data.summary.total) },
+        { label: "Average transaction", value: money(data.summary.average) },
+        {
+          label: "Generated at",
+          value: new Date(data.generatedAt).toLocaleString("en-US"),
+        },
+      ],
+      attachments: [
+        {
+          filename: fileName,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+
+    if (!result.sent) {
+      return res.status(502).json({
+        success: false,
+        message: "The report was generated, but email delivery failed. Please try again.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Your PDF report was sent to ${req.user.email}.`,
+    });
+  } catch (error) {
+    return handleReportError(error, res, next);
+  }
+};
+
