@@ -308,11 +308,11 @@ export default function BudgetSettingsModal({
               {/* Salary Amount Input */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Monthly Salary / Base Budget ($ or ₹)
+                  Monthly Salary / Base Budget (₹)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400">
-                    $
+                    ₹
                   </span>
                   <input
                     type="number"
@@ -608,7 +608,7 @@ export default function BudgetSettingsModal({
 
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                        Monthly Amount ($ or ₹)
+                        Monthly Amount (₹)
                       </label>
                       <input
                         type="number"

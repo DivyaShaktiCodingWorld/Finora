@@ -11,6 +11,7 @@ import {
   deleteFixedExpense,
   dismissNotification,
   getMonthlySavingsHistory,
+  setMonthSalary,
 } from "../controllers/budgetController.js";
 
 const router = Router();
@@ -26,6 +27,9 @@ router.get("/savings-history", getMonthlySavingsHistory);
 
 // Update budget salary & cycle settings (requires CSRF)
 router.post("/settings", verifyCsrfToken, updateBudgetSettings);
+
+// Set or update salary for a specific month/cycle (requires CSRF)
+router.post("/month-salary", verifyCsrfToken, setMonthSalary);
 
 // Toggle fixed expense as paid / pending for active cycle (requires CSRF)
 router.post("/toggle-fixed-expense", verifyCsrfToken, toggleFixedExpense);

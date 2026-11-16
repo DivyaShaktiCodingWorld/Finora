@@ -1,4 +1,4 @@
-import { DollarSign, Hash, CalendarDays, TrendingUp } from "lucide-react";
+import { IndianRupee, Hash, CalendarDays, TrendingUp } from "lucide-react";
 import { formatCurrency } from "../../lib/expenseConstants";
 
 export default function AnalyticsSummaryCards({ summary, year, loading }) {
@@ -7,7 +7,7 @@ export default function AnalyticsSummaryCards({ summary, year, loading }) {
       title: `${year} Total Spent`,
       value: formatCurrency(summary?.yearTotalSpent || 0),
       subtitle: `${summary?.yearTotalCount || 0} total transactions`,
-      icon: DollarSign,
+      icon: IndianRupee,
       iconBg: "bg-finora-50",
       iconColor: "text-finora-700",
       highlight: true,

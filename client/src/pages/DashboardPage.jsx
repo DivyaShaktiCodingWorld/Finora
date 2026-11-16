@@ -1,20 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowUpRight,
-  LogOut,
   ShieldCheck,
-  Wallet,
   Plus,
   RefreshCw,
   CheckCircle2,
   AlertCircle,
   X,
-  CreditCard,
-  BarChart3,
-  LayoutDashboard,
-  PiggyBank,
   Sparkles,
 } from "lucide-react";
 
@@ -34,15 +26,11 @@ import ReportExport from "../components/expenses/ReportExport";
 import BudgetOverviewCard from "../components/budget/BudgetOverviewCard";
 import UpcomingDuesWidget from "../components/budget/UpcomingDuesWidget";
 import BudgetSettingsModal from "../components/budget/BudgetSettingsModal";
+import OnboardingSalaryModal from "../components/budget/OnboardingSalaryModal";
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
-
   const user = useAuthStore((state) => state.user);
   const status = useAuthStore((state) => state.status);
-  const logout = useAuthStore((state) => state.logout);
-
-  const [loggingOut, setLoggingOut] = useState(false);
 
   // Expense Data State
   const [expenses, setExpenses] = useState([]);
@@ -84,6 +72,7 @@ export default function DashboardPage() {
   const [budgetData, setBudgetData] = useState(null);
   const [budgetLoading, setBudgetLoading] = useState(true);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
 
   // In-app Toast / Notification State
   const [notification, setNotification] = useState(null);
@@ -167,11 +156,24 @@ export default function DashboardPage() {
     }
   }, [user, status, fetchExpenses, fetchSummary, fetchBudget]);
 
-  const handleToggleFixedExpense = async (fixedExpenseId, isPaid) => {
+  // Prompt newly created user or user with unconfigured salary to add their salary
+  useEffect(() => {
+    if (!budgetLoading && budgetData && user?._id) {
+      const salaryAmount = budgetData.salary?.amount || 0;
+      const isSkipped = localStorage.getItem(
+        `finora_onboarding_skipped_${user._id}`
+      );
+      if (salaryAmount === 0 && !isSkipped) {
+        setIsOnboardingModalOpen(true);
+      }
+    }
+  }, [budgetLoading, budgetData, user]);
+
+  const handleToggleFixedExpense = async (fixedExpenseId, targetPaidStatus) => {
     try {
       const response = await budgetService.toggleFixedExpense(
         fixedExpenseId,
-        isPaid
+        targetPaidStatus
       );
       if (response.success) {
         if (response.completionNotification) {
@@ -179,7 +181,7 @@ export default function DashboardPage() {
         } else {
           showNotification("success", response.message);
         }
-        fetchBudget();
+        await Promise.all([fetchBudget(), fetchSummary(), fetchExpenses()]);
       }
     } catch (err) {
       showNotification(
@@ -273,113 +275,22 @@ export default function DashboardPage() {
     sortBy !== "date_desc" ||
     selectedPeriod !== "this_month";
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await logout();
-      navigate("/login", { replace: true });
-    } finally {
-      setLoggingOut(false);
-    }
-  };
+  // Listen for global Add Expense trigger from sidebar or mobile bar
+  useEffect(() => {
+    const handleGlobalAdd = () => {
+      handleOpenAddModal();
+    };
+    window.addEventListener("finora:open-add-expense", handleGlobalAdd);
+    return () => {
+      window.removeEventListener("finora:open-add-expense", handleGlobalAdd);
+    };
+  }, []);
 
   const firstName = user?.name?.split(" ")[0] || "there";
 
   return (
-    <main className="min-h-screen bg-[#f7faf8] pb-16">
-      {/* Top Sticky Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-8">
-          <div className="flex items-center gap-6">
-            <Link to="/dashboard" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-finora-900 text-white shadow-xs">
-                <Wallet size={20} />
-              </div>
-
-              <span className="font-display text-xl font-extrabold tracking-tight text-finora-950">
-                finora<span className="text-finora-500">.</span>
-              </span>
-            </Link>
-
-            {/* Navigation Switcher Tabs */}
-            <nav className="hidden sm:flex items-center gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200/60">
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-finora-900 shadow-xs"
-              >
-                <LayoutDashboard size={14} className="text-finora-600" />
-                <span>Dashboard</span>
-              </Link>
-              <Link
-                to="/budget"
-                className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:text-slate-900"
-              >
-                <PiggyBank size={14} />
-                <span>Budget & Savings</span>
-              </Link>
-              <Link
-                to="/analytics"
-                className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:text-slate-900"
-              >
-                <BarChart3 size={14} />
-                <span>Analytics</span>
-              </Link>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Mobile Nav Switcher */}
-            <div className="flex sm:hidden items-center gap-1">
-              <Link
-                to="/dashboard"
-                className="p-2 rounded-xl bg-finora-50 text-finora-700"
-                title="Dashboard"
-              >
-                <LayoutDashboard size={18} />
-              </Link>
-              <Link
-                to="/budget"
-                className="p-2 rounded-xl text-slate-600 hover:bg-slate-100"
-                title="Budget & Savings"
-              >
-                <PiggyBank size={18} />
-              </Link>
-              <Link
-                to="/analytics"
-                className="p-2 rounded-xl text-slate-600 hover:bg-slate-100"
-                title="Analytics"
-              >
-                <BarChart3 size={18} />
-              </Link>
-            </div>
-
-            {/* Quick Add Button in Header */}
-            <button
-              type="button"
-              onClick={handleOpenAddModal}
-              className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-finora-800 px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-sm transition hover:bg-finora-700"
-            >
-              <Plus size={16} />
-              Add Expense
-            </button>
-
-            {/* Logout button */}
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-            >
-              <LogOut size={16} />
-              {loggingOut ? "Signing out..." : "Logout"}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <div className="mx-auto max-w-7xl px-4 py-7 sm:px-8 space-y-6">
-        {/* Hero Section */}
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 space-y-6">
+      {/* Hero Section */}
         <motion.section
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -501,6 +412,36 @@ export default function DashboardPage() {
           ))}
         </AnimatePresence>
 
+        {/* Salary Setup Banner if not configured */}
+        {!budgetLoading &&
+          budgetData &&
+          (!budgetData.salary?.amount || budgetData.salary.amount === 0) && (
+            <div className="rounded-2xl border border-finora-200 bg-gradient-to-r from-finora-50 via-white to-emerald-50/50 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-finora-100 text-finora-800">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Add your monthly salary
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Finora needs your income to calculate safe daily spend,
+                    track savings rate, and forecast month-end balance.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOnboardingModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-finora-900 px-4 py-2 text-xs font-bold text-white hover:bg-finora-800 transition shrink-0 self-start sm:self-auto"
+              >
+                <Plus size={14} />
+                <span>Set Up Salary &amp; Dues</span>
+              </button>
+            </div>
+          )}
+
         {/* Executive Budget & Spendable Balance Summary */}
         <BudgetOverviewCard
           budgetData={budgetData}
@@ -592,7 +533,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Right Sidebar: Dues Checklist, Category Breakdown & Context */}
+          {/* Right Sidebar: Dues Checklist & Category Breakdown */}
           <div className="space-y-6">
             {/* Upcoming / Monthly Fixed Dues Checklist (House Rent, School Fees, EMIs) */}
             <UpcomingDuesWidget
@@ -607,54 +548,10 @@ export default function DashboardPage() {
               totalSpent={summary?.totalSpent}
               activeDateRange={activeDateRange}
             />
-
-            {/* Account Information Card */}
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-finora-50 text-finora-700">
-                <ShieldCheck size={21} />
-              </div>
-
-              <h3 className="mt-4 font-display text-base font-bold text-slate-900">
-                Account Information
-              </h3>
-
-              <div className="mt-3 space-y-1.5 text-xs text-slate-500">
-                <p className="font-medium text-slate-700">{user?.name}</p>
-                <p className="break-all">{user?.email}</p>
-              </div>
-
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-finora-50 px-3 py-1 text-xs font-semibold text-finora-700 border border-finora-100">
-                <span className="h-2 w-2 rounded-full bg-finora-500" />
-                Active Session
-              </div>
-            </div>
-
-            {/* Financial Tips Card */}
-            <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-finora-50/50 to-white p-6 shadow-xs">
-              <div className="flex items-center gap-2 text-finora-800 font-semibold text-xs tracking-wider uppercase">
-                <CreditCard size={15} />
-                Financial Tip
-              </div>
-              <p className="mt-2 text-xs leading-5 text-slate-600">
-                Comparing previous months using the <strong>Select Month</strong> stepper
-                is one of the fastest ways to spot seasonal spikes in utility and shopping
-                habits.
-              </p>
-            </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <div className="flex items-center gap-2">
-            <ArrowUpRight size={15} />
-            <span>Finora • Personal Finance & Expense Management</span>
-          </div>
-          <span>Seamless Multi-Period Tracking</span>
-        </footer>
-      </div>
-
-      {/* Add / Edit Expense Modal */}
+        {/* Add / Edit Expense Modal */}
       <ExpenseModal
         isOpen={isModalOpen}
         onClose={() => {
@@ -682,6 +579,18 @@ export default function DashboardPage() {
         onSettingsSaved={fetchBudget}
         onNotify={showNotification}
       />
-    </main>
+
+      {/* Onboarding Salary & Dues Setup Modal */}
+      <OnboardingSalaryModal
+        isOpen={isOnboardingModalOpen}
+        onClose={() => setIsOnboardingModalOpen(false)}
+        onSuccess={() => {
+          fetchBudget();
+          fetchSummary();
+        }}
+        onNotify={showNotification}
+        user={user}
+      />
+    </div>
   );
 }

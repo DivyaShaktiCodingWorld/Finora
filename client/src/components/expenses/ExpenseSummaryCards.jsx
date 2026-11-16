@@ -50,7 +50,7 @@ export default function ExpenseSummaryCards({
     },
     {
       title: "Average Ticket",
-      value: avgAmount > 0 ? formatCurrency(avgAmount) : "$0.00",
+      value: formatCurrency(avgAmount || 0),
       subtitle:
         totalCount > 0
           ? `Per transaction (${totalCount} total)`

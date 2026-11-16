@@ -14,10 +14,10 @@ export const SORT_LABELS = {
   title_asc: "Title: A to Z",
 };
 
-// Formatting helpers (same style as the dashboard: US locale, USD)
-const currencyFormatter = new Intl.NumberFormat("en-US", {
+// Formatting helpers (same style as the dashboard: Indian locale, INR)
+const currencyFormatter = new Intl.NumberFormat("en-IN", {
   style: "currency",
-  currency: "USD",
+  currency: "INR",
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
@@ -297,7 +297,7 @@ export const computeReport = ({ expenses, user, query, now = new Date() }) => {
 
   return {
     generatedAt: now,
-    currency: "USD",
+    currency: "INR",
     user: {
       name: user?.name || "",
       email: user?.email || "",

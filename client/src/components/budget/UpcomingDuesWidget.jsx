@@ -17,11 +17,11 @@ export default function UpcomingDuesWidget({
   const pendingDues = checklist.filter((item) => !item.isPaid);
   const paidDues = checklist.filter((item) => item.isPaid);
 
-  const handleToggle = async (id, isPaid) => {
+  const handleToggle = async (id, currentPaidStatus) => {
     if (togglingId) return;
     setTogglingId(id);
     try {
-      await onToggleFixedExpense(id, isPaid);
+      await onToggleFixedExpense(id, !currentPaidStatus);
     } finally {
       setTogglingId(null);
     }
@@ -104,9 +104,9 @@ export default function UpcomingDuesWidget({
 
                   <div className="min-w-0">
                     <span
-                      className={`block truncate text-xs font-bold ${
+                      className={`block truncate text-xs font-bold transition ${
                         item.isPaid
-                          ? "text-emerald-950 line-through opacity-70"
+                          ? "text-emerald-800 line-through decoration-emerald-600 decoration-2 opacity-75"
                           : "text-slate-900"
                       }`}
                     >

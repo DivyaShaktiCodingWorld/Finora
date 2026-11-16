@@ -1,15 +1,16 @@
 import mongoose from "mongoose";
 import { z } from "zod";
 import crypto from "crypto";
+import User from "../models/User.js";
 import BudgetPlan from "../models/BudgetPlan.js";
 import FixedExpense from "../models/FixedExpense.js";
 import Expense, { EXPENSE_CATEGORIES } from "../models/Expense.js";
 import { sendFinoraEmail } from "../utils/emailService.js";
 // Helper to format currency in server messages
 const formatMoney = (amount) =>
-  new Intl.NumberFormat("en-US", {
+  new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
   }).format(amount || 0);
 
 // Helper: Calculate cycle date bounds based on cycleType and salaryDay
@@ -138,8 +139,18 @@ export const getCurrentBudget = async (req, res, next) => {
       user: userId,
       $or: [{ isActive: true }, { isCompleted: true }],
     })
-      .sort({ isCompleted: 1, dueDay: 1, createdAt: -1 })
-      .lean();
+      .sort({ isCompleted: 1, dueDay: 1, createdAt: -1 });
+
+    // Auto-heal any items where remaining installments accidentally exceeded total installments
+    for (const exp of fixedExpenses) {
+      if (
+        exp.totalInstallments &&
+        exp.remainingInstallments > exp.totalInstallments
+      ) {
+        exp.remainingInstallments = exp.totalInstallments;
+        await exp.save();
+      }
+    }
 
     const activeFixedExpenses = fixedExpenses.filter((e) => e.isActive && !e.isCompleted);
     const completedFixedExpenses = fixedExpenses.filter((e) => e.isCompleted);
@@ -150,7 +161,7 @@ export const getCurrentBudget = async (req, res, next) => {
 
     // Build checklist items with isPaid status
     const fixedExpensesChecklist = activeFixedExpenses.map((exp) => ({
-      ...exp,
+      ...exp.toObject ? exp.toObject() : exp,
       isPaid: paidIdsSet.has(exp._id.toString()),
     }));
 
@@ -181,6 +192,10 @@ export const getCurrentBudget = async (req, res, next) => {
         $match: {
           user: userObjectId,
           date: { $gte: cycleInfo.startDate, $lte: cycleInfo.endDate },
+          $or: [
+            { fixedExpense: { $exists: false } },
+            { fixedExpense: null },
+          ],
         },
       },
       {
@@ -350,7 +365,7 @@ void sendFinoraEmail({
       label: "Monthly income",
       value: new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: "USD",
+        currency: "INR",
       }).format(monthlySalary),
     },
     {
@@ -365,6 +380,62 @@ void sendFinoraEmail({
       success: true,
       message: "Budget settings updated successfully.",
       budgetPlan,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/budget/month-salary
+const setMonthSalarySchema = z.object({
+  year: z.coerce.number().min(2000).max(2100),
+  month: z.coerce.number().min(1).max(12),
+  salary: z.coerce.number().min(0, "Salary cannot be negative"),
+});
+
+export const setMonthSalary = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const validation = setMonthSalarySchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        message: validation.error.issues[0]?.message || "Invalid input.",
+      });
+    }
+
+    const { year, month, salary } = validation.data;
+
+    let budgetPlan = await BudgetPlan.findOne({ user: userId });
+    if (!budgetPlan) {
+      budgetPlan = new BudgetPlan({ user: userId });
+    }
+
+    const cycleKeyPrefix = `${year}-${String(month).padStart(2, "0")}`;
+    let cycleRecord = budgetPlan.cycles.find((c) =>
+      c.cycleKey.startsWith(cycleKeyPrefix)
+    );
+
+    if (!cycleRecord) {
+      cycleRecord = {
+        cycleKey: cycleKeyPrefix,
+        salaryOverride: salary > 0 ? salary : null,
+        paidFixedExpenseIds: [],
+      };
+      budgetPlan.cycles.push(cycleRecord);
+    } else {
+      cycleRecord.salaryOverride = salary > 0 ? salary : null;
+    }
+
+    await budgetPlan.save();
+
+    return res.status(200).json({
+      success: true,
+      message:
+        salary > 0
+          ? `Salary for ${cycleKeyPrefix} set to ${formatMoney(salary)}.`
+          : `Salary for ${cycleKeyPrefix} removed.`,
+      cycle: cycleRecord,
     });
   } catch (error) {
     next(error);
@@ -424,15 +495,28 @@ export const toggleFixedExpense = async (req, res, next) => {
       budgetPlan.cycles.push(cycleRecord);
     }
 
+    // Auto-heal any corrupt state where remaining installments accidentally exceeded total
+    if (
+      fixedExpense.totalInstallments &&
+      fixedExpense.remainingInstallments > fixedExpense.totalInstallments
+    ) {
+      fixedExpense.remainingInstallments = fixedExpense.totalInstallments;
+    }
+
+    const isCurrentlyPaid = cycleRecord.paidFixedExpenseIds.some(
+      (id) => id.toString() === fixedExpenseId
+    );
+
+    // Target state: if isPaid is explicitly boolean, use it. Otherwise, toggle
+    const targetPaid = typeof isPaid === "boolean" ? isPaid : !isCurrentlyPaid;
+
     let completionNotification = null;
 
-    if (isPaid) {
-      // Add to paid list if not present
-      if (!cycleRecord.paidFixedExpenseIds.some((id) => id.toString() === fixedExpenseId)) {
-        cycleRecord.paidFixedExpenseIds.push(fixedExpense._id);
-      }
+    if (targetPaid && !isCurrentlyPaid) {
+      // 1. Add to cycle paid list
+      cycleRecord.paidFixedExpenseIds.push(fixedExpense._id);
 
-      // Decrement tenure if finite
+      // 2. Decrement remaining tenure if finite
       if (
         fixedExpense.remainingInstallments !== null &&
         fixedExpense.remainingInstallments !== undefined
@@ -457,13 +541,34 @@ export const toggleFixedExpense = async (req, res, next) => {
           fixedExpense.remainingInstallments -= 1;
         }
       }
-    } else {
-      // Remove from paid list
+
+      // 3. Create or ensure linked Expense document so charts & lists capture it
+      const existingExpense = await Expense.findOne({
+        user: userId,
+        fixedExpense: fixedExpense._id,
+        cycleKey: cycleInfo.cycleKey,
+      });
+
+      if (!existingExpense) {
+        await Expense.create({
+          user: userId,
+          title: fixedExpense.title,
+          amount: fixedExpense.amount,
+          category: fixedExpense.category,
+          date: new Date(),
+          paymentMethod: "Bank Transfer",
+          notes: `Fixed commitment payment for cycle ${cycleInfo.cycleKey}`,
+          fixedExpense: fixedExpense._id,
+          cycleKey: cycleInfo.cycleKey,
+        });
+      }
+    } else if (!targetPaid && isCurrentlyPaid) {
+      // 1. Remove from cycle paid list
       cycleRecord.paidFixedExpenseIds = cycleRecord.paidFixedExpenseIds.filter(
         (id) => id.toString() !== fixedExpenseId
       );
 
-      // Revert completion if it was marked done in this action
+      // 2. Revert completion or decrement
       if (fixedExpense.isCompleted && fixedExpense.remainingInstallments === 0) {
         fixedExpense.isCompleted = false;
         fixedExpense.isActive = true;
@@ -473,38 +578,49 @@ export const toggleFixedExpense = async (req, res, next) => {
         fixedExpense.remainingInstallments !== null &&
         fixedExpense.remainingInstallments !== undefined
       ) {
-        fixedExpense.remainingInstallments += 1;
+        const maxTenure = fixedExpense.totalInstallments || Infinity;
+        fixedExpense.remainingInstallments = Math.min(
+          maxTenure,
+          fixedExpense.remainingInstallments + 1
+        );
       }
+
+      // 3. Delete linked Expense document
+      await Expense.deleteMany({
+        user: userId,
+        fixedExpense: fixedExpense._id,
+        cycleKey: cycleInfo.cycleKey,
+      });
     }
 
     await Promise.all([fixedExpense.save(), budgetPlan.save()]);
     void sendFinoraEmail({
-  to: req.user.email,
-  subject: `Finora: ${fixedExpense.title} payment status`,
-  heading: isPaid
-    ? "Fixed commitment marked as paid"
-    : "Fixed commitment marked as pending",
-  intro: `Your fixed commitment "${fixedExpense.title}" has a new payment status.`,
-  details: [
-    { label: "Commitment", value: fixedExpense.title },
-    {
-      label: "Amount",
-      value: new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(fixedExpense.amount),
-    },
-    { label: "Status", value: isPaid ? "Paid" : "Pending" },
-    { label: "Category", value: fixedExpense.category },
-  ],
-});
+      to: req.user.email,
+      subject: `Finora: ${fixedExpense.title} payment status`,
+      heading: targetPaid
+        ? "Fixed commitment marked as paid"
+        : "Fixed commitment marked as pending",
+      intro: `Your fixed commitment "${fixedExpense.title}" has a new payment status.`,
+      details: [
+        { label: "Commitment", value: fixedExpense.title },
+        {
+          label: "Amount",
+          value: new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+          }).format(fixedExpense.amount),
+        },
+        { label: "Status", value: targetPaid ? "Paid" : "Pending" },
+        { label: "Category", value: fixedExpense.category },
+      ],
+    });
 
     return res.status(200).json({
       success: true,
-      message: isPaid
+      message: targetPaid
         ? `Marked "${fixedExpense.title}" as paid.`
         : `Marked "${fixedExpense.title}" as pending.`,
-      isPaid,
+      isPaid: targetPaid,
       completionNotification,
       fixedExpense,
     });
@@ -519,13 +635,22 @@ export const getFixedExpenses = async (req, res, next) => {
     const userId = req.user._id;
 
     const fixedExpenses = await FixedExpense.find({ user: userId })
-      .sort({ isCompleted: 1, dueDay: 1, createdAt: -1 })
-      .lean();
+      .sort({ isCompleted: 1, dueDay: 1, createdAt: -1 });
+
+    for (const exp of fixedExpenses) {
+      if (
+        exp.totalInstallments &&
+        exp.remainingInstallments > exp.totalInstallments
+      ) {
+        exp.remainingInstallments = exp.totalInstallments;
+        await exp.save();
+      }
+    }
 
     return res.status(200).json({
       success: true,
       count: fixedExpenses.length,
-      fixedExpenses,
+      fixedExpenses: fixedExpenses.map((e) => (e.toObject ? e.toObject() : e)),
     });
   } catch (error) {
     next(error);
@@ -614,7 +739,7 @@ void sendFinoraEmail({
       label: "Amount",
       value: new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: "USD",
+        currency: "INR",
       }).format(fixedExpense.amount),
     },
     { label: "Due day", value: String(fixedExpense.dueDay) },
@@ -668,7 +793,7 @@ void sendFinoraEmail({
       label: "Amount",
       value: new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: "USD",
+        currency: "INR",
       }).format(fixedExpense.amount),
     },
     { label: "Due day", value: String(fixedExpense.dueDay) },
@@ -714,7 +839,7 @@ void sendFinoraEmail({
       label: "Amount",
       value: new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: "USD",
+        currency: "INR",
       }).format(fixedExpense.amount),
     },
   ],
@@ -724,6 +849,12 @@ void sendFinoraEmail({
       { user: userId },
       { $pull: { "cycles.$[].paidFixedExpenseIds": id } }
     );
+
+    // Clean up any linked expenses
+    await Expense.deleteMany({
+      user: userId,
+      fixedExpense: id,
+    });
 
     return res.status(200).json({
       success: true,
@@ -777,6 +908,15 @@ export const getMonthlySavingsHistory = async (req, res, next) => {
         ? yearQuery
         : currentYear;
 
+    // 0. Determine when user joined Finora to track savings only from join month forward
+    let userCreatedAt = req.user?.createdAt ? new Date(req.user.createdAt) : null;
+    if (!userCreatedAt) {
+      const userDoc = await User.findById(userId).select("createdAt").lean();
+      userCreatedAt = userDoc?.createdAt ? new Date(userDoc.createdAt) : new Date();
+    }
+    const joinYear = userCreatedAt.getUTCFullYear();
+    const joinMonthIndex = userCreatedAt.getUTCMonth(); // 0-11
+
     // 1. Fetch user budget plan
     const budgetPlan = await BudgetPlan.findOne({ user: userId });
     const baseSalary = budgetPlan?.monthlySalary || 0;
@@ -791,6 +931,7 @@ export const getMonthlySavingsHistory = async (req, res, next) => {
       yearsAgg.map((y) => y._id).filter((y) => typeof y === "number")
     );
     availableYearsSet.add(currentYear);
+    availableYearsSet.add(joinYear);
     const availableYears = Array.from(availableYearsSet).sort((a, b) => b - a);
 
     // 3. Aggregate daily variable expenses grouped by month for targetYear
@@ -802,6 +943,10 @@ export const getMonthlySavingsHistory = async (req, res, next) => {
         $match: {
           user: userObjectId,
           date: { $gte: startOfYear, $lte: endOfYear },
+          $or: [
+            { fixedExpense: { $exists: false } },
+            { fixedExpense: null },
+          ],
         },
       },
       {
@@ -879,27 +1024,16 @@ export const getMonthlySavingsHistory = async (req, res, next) => {
         targetYear < currentYear ||
         (targetYear === currentYear && monthIdx < currentMonthIndex);
 
-      const cycle = cyclesMap.get(m);
-      const monthSalary =
-        cycle?.salaryOverride !== null && cycle?.salaryOverride !== undefined
-          ? cycle.salaryOverride
-          : baseSalary;
+      // Determine if month is before the user joined Finora
+      const isPreJoinMonth =
+        targetYear < joinYear ||
+        (targetYear === joinYear && monthIdx < joinMonthIndex);
 
-      // Fixed expenses for this month
-      let monthFixedSpent = 0;
-      if (cycle?.paidFixedExpenseIds && cycle.paidFixedExpenseIds.length > 0) {
-        const paidSet = new Set(
-          cycle.paidFixedExpenseIds.map((id) => id.toString())
-        );
-        monthFixedSpent = Math.round(
-          fixedExpenses
-            .filter((e) => paidSet.has(e._id.toString()))
-            .reduce((sum, e) => sum + e.amount, 0) * 100
-        ) / 100;
-      } else {
-        // If past or current month without cycle record, use active committed
-        monthFixedSpent = isFutureMonth ? 0 : activeFixedCommittedMonthly;
-      }
+      const cycle = cyclesMap.get(m);
+      const hasCustomSalary =
+        cycle?.salaryOverride !== null &&
+        cycle?.salaryOverride !== undefined &&
+        Number(cycle.salaryOverride) > 0;
 
       // Daily variable expenses
       const expenseInfo = expenseByMonthMap.get(m) || {
@@ -909,21 +1043,64 @@ export const getMonthlySavingsHistory = async (req, res, next) => {
       const monthVariableSpent = expenseInfo.totalAmount;
       const monthExpenseCount = expenseInfo.count;
 
+      const hasActivity =
+        monthExpenseCount > 0 ||
+        (cycle?.paidFixedExpenseIds && cycle.paidFixedExpenseIds.length > 0);
+
+      // FUTURE MONTHS RULE:
+      // A future month (e.g. December when current is November) must NOT be displayed
+      // as upcoming unless the user has explicitly added a salary for that month (or logged activity).
+      if (isFutureMonth && !hasCustomSalary && !hasActivity) {
+        continue;
+      }
+
+      const monthSalary = isPreJoinMonth
+        ? 0
+        : hasCustomSalary
+        ? cycle.salaryOverride
+        : isFutureMonth
+        ? 0
+        : baseSalary;
+
+      // Fixed expenses for this month
+      let monthFixedSpent = 0;
+      if (!isPreJoinMonth) {
+        if (cycle?.paidFixedExpenseIds && cycle.paidFixedExpenseIds.length > 0) {
+          const paidSet = new Set(
+            cycle.paidFixedExpenseIds.map((id) => id.toString())
+          );
+          monthFixedSpent = Math.round(
+            fixedExpenses
+              .filter((e) => paidSet.has(e._id.toString()))
+              .reduce((sum, e) => sum + e.amount, 0) * 100
+          ) / 100;
+        } else {
+          // If past or current month without cycle record, or future month with salary, use active committed
+          monthFixedSpent = activeFixedCommittedMonthly;
+        }
+      }
+
       const totalSpent =
         Math.round((monthFixedSpent + monthVariableSpent) * 100) / 100;
-      const netSavings = Math.round((monthSalary - totalSpent) * 100) / 100;
+      const netSavings = isPreJoinMonth
+        ? 0
+        : Math.round((monthSalary - totalSpent) * 100) / 100;
       const savingsRate =
-        monthSalary > 0
+        !isPreJoinMonth && monthSalary > 0
           ? Math.round((netSavings / monthSalary) * 1000) / 10
           : 0;
 
       let status = "neutral";
-      if (!isFutureMonth && (monthSalary > 0 || totalSpent > 0)) {
+      if (isPreJoinMonth) {
+        status = "not_joined";
+      } else if (isFutureMonth) {
+        status = "future_planned";
+      } else if (monthSalary > 0 || totalSpent > 0) {
         if (netSavings > 0) status = "surplus";
         else if (netSavings < 0) status = "deficit";
       }
 
-      if (!isFutureMonth) {
+      if (!isFutureMonth && !isPreJoinMonth) {
         cumulativeSavings += netSavings;
         sumIncomeElapsed += monthSalary;
         sumSpentElapsed += totalSpent;
@@ -952,6 +1129,8 @@ export const getMonthlySavingsHistory = async (req, res, next) => {
         isCurrentMonth,
         isFutureMonth,
         isPastMonth,
+        isPreJoinMonth,
+        hasCustomSalary,
         salary: monthSalary,
         fixedSpent: monthFixedSpent,
         variableSpent: monthVariableSpent,
@@ -963,6 +1142,9 @@ export const getMonthlySavingsHistory = async (req, res, next) => {
         cumulativeSavingsSoFar: Math.round(cumulativeSavings * 100) / 100,
       });
     }
+
+    // Sort descending: current month first, then previous, then previous
+    monthlyBreakdown.reverse();
 
     const totalIncome = Math.round(sumIncomeElapsed * 100) / 100;
     const totalSpent = Math.round(sumSpentElapsed * 100) / 100;
@@ -985,6 +1167,10 @@ export const getMonthlySavingsHistory = async (req, res, next) => {
         elapsedMonthsCount: elapsedCount,
         bestMonth,
         baseSalary,
+        userJoinedAt: userCreatedAt,
+        joinYear,
+        joinMonthIndex,
+        joinMonthName: MONTH_NAMES[joinMonthIndex]?.full || "",
       },
       monthlyBreakdown,
     });

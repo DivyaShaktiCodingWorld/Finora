@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
-  DollarSign,
+  IndianRupee,
   Calendar,
   CreditCard,
   Tag,
@@ -231,14 +231,14 @@ export default function ExpenseModal({
                     htmlFor="expense-amount"
                     className="block text-xs font-bold uppercase tracking-wider text-slate-600"
                   >
-                    Amount ($) *
+                    Amount (₹) *
                   </label>
                   <div
                     className={`flex items-center gap-3 rounded-xl border bg-white px-3.5 py-3 transition-all ${
                       errors.amount ? "border-red-400 ring-2 ring-red-100" : "border-slate-200 focus-within:border-finora-600 focus-within:ring-2 focus-within:ring-finora-100"
                     }`}
                   >
-                    <DollarSign size={18} className="shrink-0 text-slate-400" />
+                    <IndianRupee size={18} className="shrink-0 text-slate-400" />
                     <input
                       id="expense-amount"
                       name="amount"

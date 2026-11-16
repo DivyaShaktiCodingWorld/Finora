@@ -61,12 +61,12 @@ Finora is a modern personal finance and expense tracking web application built w
   - Maximum **10,000 transactions** per report, with a clear message asking for a shorter range if exceeded.
   - Zod validation for dates (`YYYY-MM-DD`), category, search length, sort option, and start/end date order.
   - Reports are generated only from the logged-in user's own data.
-  - Amounts are calculated in cents internally to avoid floating-point errors (reports are formatted in USD).
+  - Amounts are calculated in cents internally to avoid floating-point errors (reports are formatted in standard Indian Rupee ₹ INR).
 
 ### 4. Financial Insights & Visual Analytics
 
 - **Dedicated Analytics Page (`/analytics`)**:
-  - Accessible via top navigation switcher tabs between **Dashboard** and **Analytics**.
+  - Accessible via the unified responsive left-side navbar across **Dashboard**, **Budget & Savings**, and **Analytics**.
   - Dynamic **Year Selector** (`<` / `>` controls and dropdown) to visualize year-by-year spending patterns.
   - Quick "+ Add Expense" trigger and live refresh button.
 - **Month-wise Stacked Bar Chart**:
