@@ -6,7 +6,7 @@ Finora is a modern personal finance and expense tracking web application built w
 
 ## Features
 
-### 1. Authentication & Security (Implemented by DivyaShakti)
+### 1. Authentication & Security (Implemented by Divya Shakti)
 
 - Secure user registration and login with bcrypt password hashing (cost factor 12).
 - Dual JWT session architecture (short-lived access tokens + long-lived refresh tokens) stored in HTTP-only cookies.
@@ -113,6 +113,24 @@ Finora is a modern personal finance and expense tracking web application built w
   - **Remaining Balance**: `Salary - Total Fixed Commitments - Daily Expenses Logged`.
   - **Safe Daily Spend Target**: `Remaining Balance / Days Left in Cycle` showing exactly how much can safely be spent per day to stay within budget.
 
+### 6. Email Notification & PDF Delivery Workflow (Implemented By Divya Shakti)
+
+- **Automated Financial Activity Notifications**:
+  - Powered by a dedicated backend email service to dispatch real-time alerts for supported financial activities.
+  - **End-to-End Execution Pipeline**:
+    1. User triggers a supported financial action on the client.
+    2. Backend processes and validates the requested operation.
+    3. Email service dynamically compiles the notification payload and template.
+    4. **Nodemailer** dispatches the message via the configured SMTP transport.
+    5. Frontend surfaces real-time toast/status feedback reflecting delivery success or failure.
+- **On-Demand PDF Report Email Delivery**:
+  - Accessible directly from the **Report Export** section via an integrated **Send via Email** option.
+  - Leverages the built-in report generation engine to compile the financial statement as a PDF and attach it directly to the outgoing email.
+- **Server-Side Security & Error Handling**:
+  - **Strict Credential Isolation**: SMTP credentials and sensitive configurations are stored exclusively in backend environment variables (`.env`) and never exposed to the client.
+  - **Authenticated Recipient Resolution**: Target email addresses are pulled directly from verified, authenticated user session data to prevent unauthorized or spoofed relays.
+  - **Graceful Failure Handling**: Delivery errors are caught server-side and accurately relayed to the UI, ensuring failed dispatches never trigger false success notifications.
+
 ---
 
 ## Tech Stack
@@ -171,6 +189,12 @@ CLIENT_URL=http://localhost:5173
 MONGODB_URI=your_mongodb_connection_string
 ACCESS_TOKEN_SECRET=your_long_random_secret
 REFRESH_TOKEN_SECRET=your_other_long_random_secret
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your_finora_email@gmail.com
+SMTP_PASS=your_google_app_password
+EMAIL_FROM=Finora <your_finora_email@gmail.com>
 ```
 
 ### 2. Frontend Setup
@@ -226,3 +250,7 @@ VITE_API_URL=http://localhost:5000/api
 - `PUT /api/budget/fixed-expenses/:id` – Update recurring commitment details (requires CSRF token)
 - `DELETE /api/budget/fixed-expenses/:id` – Delete a recurring commitment (requires CSRF token)
 - `POST /api/budget/dismiss-notification` – Dismiss a milestone completion banner notification (requires CSRF token)
+
+### Notifications (`/api/reports/email`)
+
+- `POST /api/reports/email` – Send PDF report through email (requires login)

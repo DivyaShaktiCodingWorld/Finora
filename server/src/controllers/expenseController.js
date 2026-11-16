@@ -4,6 +4,7 @@ import Expense, {
   EXPENSE_CATEGORIES,
   PAYMENT_METHODS,
 } from "../models/Expense.js";
+import { sendExpenseActivityEmail } from "../utils/emailService.js";
 
 // Validation schemas
 const createExpenseSchema = z.object({
@@ -328,7 +329,19 @@ export const createExpense = async (req, res, next) => {
     };
 
     const expense = await Expense.create(expenseData);
+    // Send notification without interrupting successful expense creation.
+const emailResult = await sendExpenseActivityEmail(
+  req.user,
+  expense,
+  "created"
+);
 
+if (!emailResult.sent) {
+  console.error(
+    "Expense notification was not sent:",
+    emailResult.error || emailResult.reason
+  );
+}
     return res.status(201).json({
       success: true,
       message: "Expense created successfully.",
@@ -368,7 +381,7 @@ export const updateExpense = async (req, res, next) => {
         message: "Expense not found.",
       });
     }
-
+const previousExpense = expense.toObject();
     // Apply allowed updates
     const updates = validation.data;
     if (updates.title !== undefined) expense.title = updates.title;
@@ -380,7 +393,12 @@ export const updateExpense = async (req, res, next) => {
     if (updates.notes !== undefined) expense.notes = updates.notes;
 
     await expense.save();
-
+void sendExpenseActivityEmail({
+  user: req.user,
+  action: "updated",
+  expense: expense.toObject(),
+  previousExpense,
+});
     return res.status(200).json({
       success: true,
       message: "Expense updated successfully.",
@@ -412,7 +430,11 @@ export const deleteExpense = async (req, res, next) => {
         message: "Expense not found.",
       });
     }
-
+void sendExpenseActivityEmail({
+  user: req.user,
+  action: "deleted",
+  previousExpense: expense.toObject(),
+});
     return res.status(200).json({
       success: true,
       message: "Expense deleted successfully.",
