@@ -80,9 +80,9 @@ export const emailPdfReport = async (req, res, next) => {
     const fileName = buildReportFileName(data, "pdf");
 
     const money = (amount) =>
-      new Intl.NumberFormat("en-US", {
+      new Intl.NumberFormat("en-IN", {
         style: "currency",
-        currency: data.currency || "USD",
+        currency: data.currency || "INR",
       }).format(Number(amount || 0));
 
     const result = await sendFinoraEmail({

@@ -175,7 +175,7 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <div className="mt-8 border-t border-slate-200 pt-6 text-center">
+      <div className="mt-8 border-t border-slate-200 pt-6 text-center space-y-4">
         <p className="text-sm text-slate-500">
           Don't have an account?{" "}
           <Link
@@ -185,6 +185,16 @@ export default function LoginPage() {
             Create an account
           </Link>
         </p>
+
+        <div className="flex items-center justify-center gap-3 text-xs text-slate-400">
+          <Link to="/terms" className="hover:text-slate-600 transition">
+            Terms & Conditions
+          </Link>
+          <span>•</span>
+          <Link to="/privacy" className="hover:text-slate-600 transition">
+            Privacy Policy
+          </Link>
+        </div>
       </div>
 
       <p className="mt-7 text-center text-[11px] leading-5 text-slate-400">

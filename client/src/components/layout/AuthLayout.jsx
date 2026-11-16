@@ -141,8 +141,16 @@ export default function AuthLayout() {
           </motion.div>
         </div>
 
-        <footer className="px-6 pb-6 text-center text-xs text-slate-400">
-          Securely manage your finances with Finora.
+        <footer className="px-6 pb-6 text-center text-xs text-slate-400 flex flex-wrap items-center justify-center gap-3">
+          <span>Securely manage your finances with Finora.</span>
+          <span>•</span>
+          <Link to="/terms" className="hover:text-slate-600 transition hover:underline">
+            Terms & Conditions
+          </Link>
+          <span>•</span>
+          <Link to="/privacy" className="hover:text-slate-600 transition hover:underline">
+            Privacy Policy
+          </Link>
         </footer>
       </section>
     </main>

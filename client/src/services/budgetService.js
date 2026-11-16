@@ -11,6 +11,11 @@ const budgetService = {
     return response.data;
   },
 
+  async setMonthSalary(payload) {
+    const response = await api.post("/budget/month-salary", payload);
+    return response.data;
+  },
+
   async toggleFixedExpense(fixedExpenseId, isPaid) {
     const response = await api.post("/budget/toggle-fixed-expense", {
       fixedExpenseId,

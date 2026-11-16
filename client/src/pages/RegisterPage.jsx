@@ -274,8 +274,23 @@ export default function RegisterPage() {
             />
 
             <span className="text-xs leading-5 text-slate-500">
-              I agree to the terms of use and acknowledge the privacy
-              policy.
+              I agree to the{" "}
+              <Link
+                to="/terms"
+                target="_blank"
+                className="font-semibold text-finora-700 hover:underline"
+              >
+                Terms & Conditions
+              </Link>{" "}
+              and acknowledge the{" "}
+              <Link
+                to="/privacy"
+                target="_blank"
+                className="font-semibold text-finora-700 hover:underline"
+              >
+                Privacy Policy
+              </Link>
+              .
             </span>
           </label>
 

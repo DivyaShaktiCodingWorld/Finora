@@ -32,18 +32,18 @@ const escapeHtml = (value = "") => {
 };
 
 /**
- * Format amounts using the project's USD currency.
+ * Format amounts using the project's INR (₹) currency.
  */
 const formatCurrency = (amount) => {
   const value = Number(amount);
 
   if (!Number.isFinite(value)) {
-    return "$0.00";
+    return "₹0.00";
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
   }).format(value);
 };
 

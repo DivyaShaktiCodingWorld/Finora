@@ -76,6 +76,16 @@ const expenseSchema = new mongoose.Schema(
       maxlength: [500, "Notes cannot exceed 500 characters"],
       default: "",
     },
+    fixedExpense: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FixedExpense",
+      default: null,
+      index: true,
+    },
+    cycleKey: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

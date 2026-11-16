@@ -180,9 +180,9 @@ export function getCategoryConfig(category) {
 
 export function formatCurrency(amount) {
   const num = typeof amount === "number" ? amount : parseFloat(amount) || 0;
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(num);

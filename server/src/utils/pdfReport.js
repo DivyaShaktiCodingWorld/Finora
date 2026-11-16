@@ -37,7 +37,7 @@ const BODY_FONT_SIZE = 8.5;
 const pdfSafe = (value) => {
   const text = String(value ?? "").replace(/\r\n?/g, "\n");
   return text.replace(
-    /[^\n\u0020-\u007E\u00A0-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u20AC]+/g,
+    /[^\n\u0020-\u007E\u00A0-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u20AC\u20B9]+/g,
     "?"
   );
 };

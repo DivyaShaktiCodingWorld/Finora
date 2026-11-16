@@ -4,12 +4,15 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import AuthLayout from "./components/layout/AuthLayout";
 import ProtectedRoute from "./components/routing/ProtectedRoute";
+import MainLayout from "./components/layout/MainLayout";
 
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import BudgetPage from "./pages/BudgetPage";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 
 import { useAuthStore } from "./store/authStore";
 
@@ -28,10 +31,15 @@ export default function App() {
       </Route>
 
       <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/budget" element={<BudgetPage />} />
-        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route element={<MainLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/budget" element={<BudgetPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+        </Route>
       </Route>
+
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
