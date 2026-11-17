@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://finora-pmgw.onrender.com/api/:path*"
+      "destination": "https://finora-production-7ad7e36a.up.railway.app/api/:path*"
     },
     {
       "source": "/(.*)",
